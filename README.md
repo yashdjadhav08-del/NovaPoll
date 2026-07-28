@@ -12,15 +12,26 @@ NovaPoll is a decentralized polling and governance platform built on the **Stell
 
 ---
 
-## 🌐 Live Demo
+## 🌐 Live Demo & Smart Contracts
 
-- **Website**: [https://frontend-chi-cyan-kcgbz3wiwy.vercel.app](https://frontend-chi-cyan-kcgbz3wiwy.vercel.app)
+- **Live Application Link**: [https://frontend-chi-cyan-kcgbz3wiwy.vercel.app](https://frontend-chi-cyan-kcgbz3wiwy.vercel.app)
+- **GitHub Repository**: [https://github.com/yashdjadhav08-del/NovaPoll](https://github.com/yashdjadhav08-del/NovaPoll)
+
+### 📜 Contract Deployment Addresses & Transaction Hashes
+
+| Smart Contract / Resource | Address / Hash |
+|---|---|
+| **User Profile Contract ID** | `CADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQP5KR` |
+| **Poll Governance Contract ID** | `CAEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQTD2L` |
+| **Contract Interaction Tx Hash** | `e2a48b9c1d0f5e3a8c7b6a4d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f` |
+| **Stellar Testnet RPC** | `https://soroban-testnet.stellar.org` |
+| **Stellar Explorer** | [https://stellar.expert/explorer/testnet](https://stellar.expert/explorer/testnet) |
 
 ---
 
 ## 🎥 Demo Video
 
-Watch Here:  
+Watch Here (1–2 Minutes):  
 👉 [https://drive.google.com/file/d/1Dpf37Atd3y0BDSgG7txaX9o8-lQ9-24V/view?usp=sharing](https://drive.google.com/file/d/1Dpf37Atd3y0BDSgG7txaX9o8-lQ9-24V/view?usp=sharing)
 
 ---
@@ -60,14 +71,20 @@ Watch Here:
 
 ## 📸 Screenshots
 
-### 🏠 Home Page
-![Home Page](screenshots/home.png)
+### 🏠 Home Page & Mobile Responsive UI
+![Home Page Mobile Responsive](screenshots/home.png)
 
 ### 🌍 Explore & Browse Polls
 ![Explore Polls](screenshots/browse.png)
 
 ### 🚀 Create Soroban Community Poll
 ![Create Poll](screenshots/create.png)
+
+### ⚙️ CI/CD Pipeline Running (GitHub Actions)
+![CI CD Pipeline](screenshots/cicd.png)
+
+### 🧪 Test Output (14 Passing Unit & Integration Tests)
+![Test Output](screenshots/test_output.png)
 
 ---
 
@@ -104,10 +121,12 @@ NovaPoll/
 │   ├── vite.config.ts
 │   └── vercel.json
 │
-├── screenshots/               # Application UI screenshots
+├── screenshots/               # Application UI & CI/CD screenshots
 │   ├── home.png
 │   ├── browse.png
-│   └── create.png
+│   ├── create.png
+│   ├── cicd.png
+│   └── test_output.png
 │
 ├── docs/                      # Architecture, Installation, API & Testing documentation
 ├── .github/workflows/         # GitHub Actions CI/CD Pipeline
