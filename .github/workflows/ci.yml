@@ -63,15 +63,15 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
-        cwd: frontend
+        working-directory: frontend
         run: npm ci || npm install
 
       - name: Run Vitest Unit Tests
-        cwd: frontend
+        working-directory: frontend
         run: npm test
 
       - name: Build React Production Bundle
-        cwd: frontend
+        working-directory: frontend
         run: npm run build
 
       - name: Deploy to Production (Vercel)
