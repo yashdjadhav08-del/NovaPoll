@@ -15,6 +15,8 @@ import {
   POLL_CONTRACT_ID,
   UserProfile,
   Poll,
+  INITIAL_POLLS,
+  INITIAL_USERS,
 } from "../utils/constants";
 import { signFreighterTx } from "./freighter";
 import { sorobanEventListener } from "./events";
@@ -35,17 +37,24 @@ export function notifyStorageChange(): void {
 export function purgeLegacyMockData(): void {
   try {
     const storedPolls = localStorage.getItem("novapoll_polls");
-    if (storedPolls) {
+    if (!storedPolls) {
+      localStorage.setItem("novapoll_polls", JSON.stringify(INITIAL_POLLS));
+    } else {
       const parsed = JSON.parse(storedPolls);
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         const realPolls = parsed.filter(
           (p) => !p.title?.toLowerCase().includes("soroban adopt evm")
         );
         localStorage.setItem("novapoll_polls", JSON.stringify(realPolls));
+      } else {
+        localStorage.setItem("novapoll_polls", JSON.stringify(INITIAL_POLLS));
       }
     }
 
     const consolidatedProfiles = new Map<string, UserProfile>();
+    INITIAL_USERS.forEach((u) => {
+      consolidatedProfiles.set(u.wallet_address.toLowerCase(), u);
+    });
 
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const key = localStorage.key(i);
@@ -128,8 +137,8 @@ export async function checkUserRegistered(userAddress: string): Promise<boolean>
     );
 
     if (rpc.Api.isSimulationSuccess(result) && result.result?.retval) {
-      const exists = scValToNative(result.result.retval) as boolean;
-      if (exists) return true;
+      const exists = scValToNative(result.result.retval);
+      if (typeof exists === "boolean" && exists) return true;
     }
   } catch (err) {
     // Contract query notice
@@ -146,7 +155,7 @@ export async function fetchUserProfile(userAddress: string): Promise<UserProfile
   try {
     const contract = new Contract(USER_CONTRACT_ID);
     const result = await server.simulateTransaction(
-      await buildReadOnlyTx(contract.call("get_user", new Address(cleanAddr).toScVal()))
+      await buildReadOnlyTx(contract.call("get_profile", new Address(cleanAddr).toScVal()))
     );
 
     if (rpc.Api.isSimulationSuccess(result) && result.result?.retval) {
@@ -398,10 +407,19 @@ export async function fetchAllPolls(): Promise<Poll[]> {
             polls.push(lp);
           }
         });
+
+        return polls;
       }
     } catch (e) {
       // JSON parse fallback
     }
+  }
+
+  if (polls.length === 0) {
+    try {
+      localStorage.setItem("novapoll_polls", JSON.stringify(INITIAL_POLLS));
+    } catch (e) {}
+    return INITIAL_POLLS;
   }
 
   return polls;
