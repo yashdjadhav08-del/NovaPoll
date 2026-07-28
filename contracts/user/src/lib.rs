@@ -50,7 +50,7 @@ impl UserContract {
             return Err(UserError::AlreadyRegistered);
         }
 
-        if username.len() == 0 || username.len() > 32 {
+        if username.is_empty() || username.len() > 32 {
             return Err(UserError::InvalidUsername);
         }
 
@@ -68,10 +68,8 @@ impl UserContract {
         env.storage().persistent().set(&key, &profile);
 
         // Emit Soroban Event
-        env.events().publish(
-            (symbol_short!("user"), symbol_short!("register")),
-            user,
-        );
+        env.events()
+            .publish((symbol_short!("user"), symbol_short!("register")), user);
 
         Ok(profile)
     }
@@ -93,7 +91,7 @@ impl UserContract {
             .get(&key)
             .ok_or(UserError::UserNotFound)?;
 
-        if username.len() == 0 || username.len() > 32 {
+        if username.is_empty() || username.len() > 32 {
             return Err(UserError::InvalidUsername);
         }
 
@@ -104,10 +102,8 @@ impl UserContract {
         env.storage().persistent().set(&key, &profile);
 
         // Emit Soroban Event
-        env.events().publish(
-            (symbol_short!("user"), symbol_short!("updated")),
-            user,
-        );
+        env.events()
+            .publish((symbol_short!("user"), symbol_short!("updated")), user);
 
         Ok(profile)
     }
@@ -133,10 +129,8 @@ impl UserContract {
         env.storage().persistent().remove(&key);
 
         // Emit Soroban Event
-        env.events().publish(
-            (symbol_short!("user"), symbol_short!("deleted")),
-            user,
-        );
+        env.events()
+            .publish((symbol_short!("user"), symbol_short!("deleted")), user);
 
         Ok(())
     }

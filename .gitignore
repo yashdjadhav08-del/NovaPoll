@@ -12,6 +12,7 @@ dist-ssr/
 # Rust / Cargo / WASM / Target directories
 target/
 target_test/
+target_ci/
 /target/
 Cargo.lock.3rdparty
 *.wasm

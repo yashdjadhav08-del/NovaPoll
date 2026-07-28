@@ -2,11 +2,11 @@
 
 use super::*;
 use novapoll_user::UserContract;
-use soroban_sdk::{testutils::Address as _, vec, Address, Env, String, Vec};
+use soroban_sdk::{testutils::Address as _, Address, Env, String, Vec};
 
 fn setup_contracts<'a>(
     env: &'a Env,
-) (
+) -> (
     PollContractClient<'a>,
     novapoll_user::UserContractClient<'a>,
     Address,
@@ -42,7 +42,14 @@ fn test_create_poll_unregistered_user_fails() {
     let end_time = env.ledger().timestamp() + 3600;
 
     // Inter-contract call check should fail with UserNotRegistered
-    let res = poll_client.try_create_poll(&unregistered_user, &title, &desc, &category, &options, &end_time);
+    let res = poll_client.try_create_poll(
+        &unregistered_user,
+        &title,
+        &desc,
+        &category,
+        &options,
+        &end_time,
+    );
     assert_eq!(res, Err(Ok(PollError::UserNotRegistered)));
 }
 
@@ -92,8 +99,18 @@ fn test_voting_and_one_vote_per_wallet_limit() {
     let creator = Address::generate(&env);
     let voter = Address::generate(&env);
 
-    user_client.register_user(&creator, &String::from_str(&env, "creator"), &String::from_str(&env, "bio"), &String::from_str(&env, "img"));
-    user_client.register_user(&voter, &String::from_str(&env, "voter1"), &String::from_str(&env, "bio"), &String::from_str(&env, "img"));
+    user_client.register_user(
+        &creator,
+        &String::from_str(&env, "creator"),
+        &String::from_str(&env, "bio"),
+        &String::from_str(&env, "img"),
+    );
+    user_client.register_user(
+        &voter,
+        &String::from_str(&env, "voter1"),
+        &String::from_str(&env, "bio"),
+        &String::from_str(&env, "img"),
+    );
 
     let title = String::from_str(&env, "Favorite Programming Language?");
     let desc = String::from_str(&env, "Vote for your primary language");
@@ -130,9 +147,24 @@ fn test_close_poll_and_winner_calculation() {
     let voter1 = Address::generate(&env);
     let voter2 = Address::generate(&env);
 
-    user_client.register_user(&creator, &String::from_str(&env, "creator"), &String::from_str(&env, "bio"), &String::from_str(&env, "img"));
-    user_client.register_user(&voter1, &String::from_str(&env, "voter1"), &String::from_str(&env, "bio"), &String::from_str(&env, "img"));
-    user_client.register_user(&voter2, &String::from_str(&env, "voter2"), &String::from_str(&env, "bio"), &String::from_str(&env, "img"));
+    user_client.register_user(
+        &creator,
+        &String::from_str(&env, "creator"),
+        &String::from_str(&env, "bio"),
+        &String::from_str(&env, "img"),
+    );
+    user_client.register_user(
+        &voter1,
+        &String::from_str(&env, "voter1"),
+        &String::from_str(&env, "bio"),
+        &String::from_str(&env, "img"),
+    );
+    user_client.register_user(
+        &voter2,
+        &String::from_str(&env, "voter2"),
+        &String::from_str(&env, "bio"),
+        &String::from_str(&env, "img"),
+    );
 
     let mut options = Vec::new(&env);
     options.push_back(String::from_str(&env, "Option A"));
@@ -161,7 +193,12 @@ fn test_close_poll_and_winner_calculation() {
 
     // Cannot vote on closed poll
     let voter3 = Address::generate(&env);
-    user_client.register_user(&voter3, &String::from_str(&env, "voter3"), &String::from_str(&env, "bio"), &String::from_str(&env, "img"));
+    user_client.register_user(
+        &voter3,
+        &String::from_str(&env, "voter3"),
+        &String::from_str(&env, "bio"),
+        &String::from_str(&env, "img"),
+    );
     let res_closed = poll_client.try_vote(&voter3, &poll_id, &0);
     assert_eq!(res_closed, Err(Ok(PollError::PollClosed)));
 }
@@ -172,14 +209,33 @@ fn test_get_all_and_trending_polls() {
     let (poll_client, user_client, _admin) = setup_contracts(&env);
 
     let creator = Address::generate(&env);
-    user_client.register_user(&creator, &String::from_str(&env, "creator"), &String::from_str(&env, "bio"), &String::from_str(&env, "img"));
+    user_client.register_user(
+        &creator,
+        &String::from_str(&env, "creator"),
+        &String::from_str(&env, "bio"),
+        &String::from_str(&env, "img"),
+    );
 
     let mut options = Vec::new(&env);
     options.push_back(String::from_str(&env, "Yes"));
     options.push_back(String::from_str(&env, "No"));
 
-    poll_client.create_poll(&creator, &String::from_str(&env, "Poll 1"), &String::from_str(&env, "Desc 1"), &0u32, &options, &(env.ledger().timestamp() + 1000));
-    poll_client.create_poll(&creator, &String::from_str(&env, "Poll 2"), &String::from_str(&env, "Desc 2"), &1u32, &options, &(env.ledger().timestamp() + 2000));
+    poll_client.create_poll(
+        &creator,
+        &String::from_str(&env, "Poll 1"),
+        &String::from_str(&env, "Desc 1"),
+        &0u32,
+        &options,
+        &(env.ledger().timestamp() + 1000),
+    );
+    poll_client.create_poll(
+        &creator,
+        &String::from_str(&env, "Poll 2"),
+        &String::from_str(&env, "Desc 2"),
+        &1u32,
+        &options,
+        &(env.ledger().timestamp() + 2000),
+    );
 
     let all = poll_client.get_all_polls();
     assert_eq!(all.len(), 2);
