@@ -15,7 +15,13 @@ NovaPoll is a decentralized polling and governance platform built on the **Stell
 ## 🌐 Live Demo
 
 - **Website**: [https://frontend-chi-cyan-kcgbz3wiwy.vercel.app](https://frontend-chi-cyan-kcgbz3wiwy.vercel.app)
-- **GitHub Repository**: [https://github.com/yashdjadhav08-del/NovaPoll](https://github.com/yashdjadhav08-del/NovaPoll)
+
+---
+
+## 🎥 Demo Video
+
+Watch Here:  
+👉 [https://drive.google.com/file/d/1Dpf37Atd3y0BDSgG7txaX9o8-lQ9-24V/view?usp=sharing](https://drive.google.com/file/d/1Dpf37Atd3y0BDSgG7txaX9o8-lQ9-24V/view?usp=sharing)
 
 ---
 
@@ -52,6 +58,19 @@ NovaPoll is a decentralized polling and governance platform built on the **Stell
 
 ---
 
+## 📸 Screenshots
+
+### 🏠 Home Page
+![Home Page](screenshots/home.png)
+
+### 🌍 Explore & Browse Polls
+![Explore Polls](screenshots/browse.png)
+
+### 🚀 Create Soroban Community Poll
+![Create Poll](screenshots/create.png)
+
+---
+
 ## 📂 Project Structure
 
 ```text
@@ -84,6 +103,11 @@ NovaPoll/
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── vercel.json
+│
+├── screenshots/               # Application UI screenshots
+│   ├── home.png
+│   ├── browse.png
+│   └── create.png
 │
 ├── docs/                      # Architecture, Installation, API & Testing documentation
 ├── .github/workflows/         # GitHub Actions CI/CD Pipeline
