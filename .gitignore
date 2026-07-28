@@ -1,0 +1,31 @@
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Rust / Cargo / WASM / Target directories
+target/
+target_test/
+/target/
+Cargo.lock.3rdparty
+*.wasm
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosct
+
+# IDE / Antigravity Agent Working Files
+.gemini/
+brain/
+*.log
