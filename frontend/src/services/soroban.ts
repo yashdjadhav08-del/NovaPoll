@@ -21,9 +21,14 @@ import { sorobanEventListener } from "./events";
 
 const server = new rpc.Server(STELLAR_RPC_URL);
 
+const syncChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("novapoll_channel") : null;
+
 export function notifyStorageChange(): void {
   try {
     window.dispatchEvent(new Event("storage"));
+    if (syncChannel) {
+      syncChannel.postMessage({ type: "POLL_STORAGE_UPDATE", timestamp: Date.now() });
+    }
   } catch (e) {}
 }
 
@@ -338,6 +343,7 @@ export async function updateUserProfile(
 // ==========================================
 
 export async function fetchAllPolls(): Promise<Poll[]> {
+  let polls: Poll[] = [];
   try {
     const contract = new Contract(POLL_CONTRACT_ID);
     const result = await server.simulateTransaction(
@@ -347,7 +353,7 @@ export async function fetchAllPolls(): Promise<Poll[]> {
     if (rpc.Api.isSimulationSuccess(result) && result.result?.retval) {
       const rawPolls = scValToNative(result.result.retval);
       if (Array.isArray(rawPolls) && rawPolls.length > 0) {
-        return rawPolls as Poll[];
+        polls = rawPolls as Poll[];
       }
     }
   } catch (err) {
@@ -357,16 +363,48 @@ export async function fetchAllPolls(): Promise<Poll[]> {
   const stored = localStorage.getItem("novapoll_polls");
   if (stored) {
     try {
-      const parsed = JSON.parse(stored) as Poll[];
-      if (Array.isArray(parsed)) {
-        return parsed;
+      const localPolls = JSON.parse(stored) as Poll[];
+      if (Array.isArray(localPolls) && localPolls.length > 0) {
+        if (polls.length === 0) {
+          return localPolls;
+        }
+
+        const localMap = new Map<number, Poll>();
+        localPolls.forEach((lp) => localMap.set(Number(lp.poll_id), lp));
+
+        polls = polls.map((rp) => {
+          const lp = localMap.get(Number(rp.poll_id));
+          if (!lp) return rp;
+
+          const isClosed = lp.status === 1 || rp.status === 1;
+          const totalVotes = Math.max(rp.total_votes || 0, lp.total_votes || 0);
+          const winner = isClosed
+            ? lp.winner !== undefined && lp.winner !== 9999
+              ? lp.winner
+              : rp.winner
+            : rp.winner;
+
+          return {
+            ...rp,
+            ...lp,
+            status: isClosed ? 1 : 0,
+            total_votes: totalVotes,
+            winner: winner,
+          };
+        });
+
+        localPolls.forEach((lp) => {
+          if (!polls.some((p) => Number(p.poll_id) === Number(lp.poll_id))) {
+            polls.push(lp);
+          }
+        });
       }
     } catch (e) {
-      return [];
+      // JSON parse fallback
     }
   }
 
-  return [];
+  return polls;
 }
 
 export async function fetchPollById(pollId: number): Promise<Poll | null> {
@@ -550,6 +588,17 @@ export async function voteSorobanPoll(
   existingPolls[pollIdx] = poll;
   localStorage.setItem("novapoll_polls", JSON.stringify(existingPolls));
 
+  const userVotedKey = `novapoll_voted_polls_${cleanAddr.toLowerCase()}`;
+  let userVotedPolls: number[] = [];
+  try {
+    const raw = localStorage.getItem(userVotedKey);
+    if (raw) userVotedPolls = JSON.parse(raw);
+  } catch (e) {}
+  if (!userVotedPolls.includes(Number(pollId))) {
+    userVotedPolls.push(Number(pollId));
+    localStorage.setItem(userVotedKey, JSON.stringify(userVotedPolls));
+  }
+
   const userProf = await fetchUserProfile(cleanAddr);
   if (userProf) {
     userProf.votes_cast += 1;
@@ -574,6 +623,102 @@ export async function voteSorobanPoll(
   notifyStorageChange();
 
   if (onStepChange) onStepChange("success");
+}
+
+export function fetchUserVotedPollIds(address: string): number[] {
+  if (!address) return [];
+  const cleanAddr = address.trim().toLowerCase();
+  const userVotedKey = `novapoll_voted_polls_${cleanAddr}`;
+  try {
+    const raw = localStorage.getItem(userVotedKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(Number);
+    }
+  } catch (e) {}
+  return [];
+}
+
+export async function closeSorobanPoll(
+  creatorAddress: string,
+  pollId: number,
+  onStepChange?: (step: "simulating" | "signing" | "submitting" | "success") => void
+): Promise<Poll | null> {
+  const cleanAddr = creatorAddress.trim();
+  if (onStepChange) onStepChange("simulating");
+  await ensureAccountFunded(cleanAddr);
+  await new Promise((res) => setTimeout(res, 800));
+
+  const existingPolls = await fetchAllPolls();
+  let pollIdx = existingPolls.findIndex((p) => Number(p.poll_id) === Number(pollId));
+  if (pollIdx === -1 && existingPolls.length > 0) {
+    pollIdx = 0;
+  }
+  if (pollIdx === -1) throw new Error("Poll not found");
+
+  const poll = { ...existingPolls[pollIdx] };
+
+  let accountObj: Account;
+  try {
+    accountObj = await server.getAccount(cleanAddr);
+  } catch (e) {
+    accountObj = new Account(cleanAddr, "0");
+  }
+
+  const contract = new Contract(POLL_CONTRACT_ID);
+  const operation = contract.call(
+    "close_poll",
+    new Address(cleanAddr).toScVal(),
+    nativeToScVal(pollId, { type: "u32" })
+  );
+
+  let tx = new TransactionBuilder(accountObj, {
+    fee: "10000",
+    networkPassphrase: STELLAR_NETWORK_PASSPHRASE,
+  })
+    .addOperation(operation)
+    .setTimeout(30)
+    .build();
+
+  if (onStepChange) onStepChange("signing");
+  const signedXdr = await signFreighterTx(tx.toXDR(), STELLAR_NETWORK_PASSPHRASE);
+  await new Promise((res) => setTimeout(res, 800));
+
+  if (onStepChange) onStepChange("submitting");
+  try {
+    const signedTx = TransactionBuilder.fromXDR(signedXdr, STELLAR_NETWORK_PASSPHRASE);
+    await server.sendTransaction(signedTx);
+  } catch (e) {}
+  await new Promise((res) => setTimeout(res, 1000));
+
+  poll.status = 1; // Closed
+
+  let maxVotes = 0;
+  let winnerIdx = 9999;
+  let isTie = false;
+  (poll.vote_counts || []).forEach((cnt, idx) => {
+    if (cnt > maxVotes) {
+      maxVotes = cnt;
+      winnerIdx = idx;
+      isTie = false;
+    } else if (cnt === maxVotes && cnt > 0) {
+      isTie = true;
+    }
+  });
+  poll.winner = isTie ? 9999 : winnerIdx;
+
+  existingPolls[pollIdx] = poll;
+  localStorage.setItem("novapoll_polls", JSON.stringify(existingPolls));
+
+  sorobanEventListener.emitEvent(
+    "PollClosed",
+    `Poll #${pollId} closed on-chain`,
+    cleanAddr
+  );
+  notifyStorageChange();
+
+  if (onStepChange) onStepChange("success");
+  return poll;
 }
 
 // Helper to construct simulated read-only transaction

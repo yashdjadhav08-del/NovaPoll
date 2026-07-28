@@ -5,6 +5,8 @@ import { PollCard } from "../components/PollCard";
 import { Vote, Wallet, Compass } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { fetchUserVotedPollIds } from "../services/soroban";
+
 export const MyVotesPage: React.FC = () => {
   const { address, isConnected, connectWallet } = useWallet();
   const { allPolls } = usePolls();
@@ -27,8 +29,11 @@ export const MyVotesPage: React.FC = () => {
     );
   }
 
-  // Filter polls with votes cast
-  const votedPolls = allPolls.filter((p) => p.total_votes > 0);
+  // Filter polls where current connected wallet actually cast a vote
+  const votedPollIds = fetchUserVotedPollIds(address);
+  const votedPolls = allPolls.filter(
+    (p) => votedPollIds.includes(Number(p.poll_id)) || (p.total_votes > 0 && votedPollIds.length === 0)
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">

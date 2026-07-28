@@ -21,7 +21,9 @@ export const SorobanProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [polls, setPolls] = useState<Poll[]>([]);
   const [isLoadingPolls, setIsLoadingPolls] = useState<boolean>(true);
   const [ledgerSequence, setLedgerSequence] = useState<number>(0);
-  const [activityFeed, setActivityFeed] = useState<SorobanEventData[]>([]);
+  const [activityFeed, setActivityFeed] = useState<SorobanEventData[]>(() =>
+    sorobanEventListener.getStoredEvents()
+  );
 
   const { address } = useWallet();
 
@@ -51,14 +53,26 @@ export const SorobanProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshPolls();
   }, [address, refreshPolls]);
 
-  // Listen to window storage events for real-time side-by-side browser sync
+  // Listen to window storage and BroadcastChannel events for real-time side-by-side browser sync
   useEffect(() => {
     const handleStorageChange = () => {
       refreshPolls();
     };
     window.addEventListener("storage", handleStorageChange);
+
+    let channel: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      channel = new BroadcastChannel("novapoll_channel");
+      channel.onmessage = (event) => {
+        if (event.data?.type === "POLL_STORAGE_UPDATE") {
+          refreshPolls();
+        }
+      };
+    }
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
+      if (channel) channel.close();
     };
   }, [refreshPolls]);
 
@@ -70,8 +84,8 @@ export const SorobanProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // Subscribe to Soroban event streaming
     sorobanEventListener.startListening(4000);
-    const unsubscribe = sorobanEventListener.subscribe((eventData) => {
-      setActivityFeed((prev) => [eventData, ...prev.slice(0, 19)]);
+    const unsubscribe = sorobanEventListener.subscribe(() => {
+      setActivityFeed(sorobanEventListener.getStoredEvents());
       // Instantly refresh poll data on blockchain events!
       refreshPolls();
     });

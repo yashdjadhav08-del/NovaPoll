@@ -199,18 +199,69 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          <div className="pt-4 border-t border-surface-border">
+          <div className="pt-4 border-t border-surface-border space-y-2">
             {isConnected && address ? (
-              <button
-                onClick={disconnectWallet}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 text-rose-400 font-medium text-sm"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Disconnect {truncateAddress(address)}</span>
-              </button>
+              <>
+                <div className="flex items-center gap-3 px-4 py-2 bg-surface-light/30 rounded-xl mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-purple to-brand-pink flex items-center justify-center text-xs font-bold text-white overflow-hidden shrink-0">
+                    {userProfile?.profile_image_url ? (
+                      <img src={userProfile.profile_image_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      userProfile?.username?.substring(0, 2).toUpperCase() || address.substring(2, 4)
+                    )}
+                  </div>
+                  <div className="truncate">
+                    <p className="text-xs font-semibold text-slate-200 truncate">
+                      {userProfile?.username || truncateAddress(address)}
+                    </p>
+                    <p className="text-[10px] text-emerald-400 font-mono">Freighter Connected</p>
+                  </div>
+                </div>
+
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-slate-300 hover:bg-surface-light/50"
+                >
+                  <User className="w-4 h-4 text-brand-purple" />
+                  <span>My Profile</span>
+                </Link>
+
+                <Link
+                  to="/my-polls"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-slate-300 hover:bg-surface-light/50"
+                >
+                  <Vote className="w-4 h-4 text-brand-pink" />
+                  <span>My Polls & Votes</span>
+                </Link>
+
+                <Link
+                  to="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-slate-300 hover:bg-surface-light/50 text-slate-300"
+                >
+                  <Settings className="w-4 h-4 text-brand-cyan" />
+                  <span>Settings & RPC</span>
+                </Link>
+
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    disconnectWallet();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 text-rose-400 font-medium text-sm mt-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Disconnect Wallet</span>
+                </button>
+              </>
             ) : (
               <button
-                onClick={connectWallet}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  connectWallet();
+                }}
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-brand-purple to-brand-cyan text-white font-semibold text-sm shadow-lg"
               >
                 <Wallet className="w-4 h-4" />

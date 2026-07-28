@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useSoroban } from "../contexts/SorobanContext";
 import { useWallet } from "../contexts/WalletContext";
-import { fetchPollById } from "../services/soroban";
+import { fetchPollById, closeSorobanPoll } from "../services/soroban";
 import { Poll, CATEGORIES, STELLAR_EXPLORER_URL } from "../utils/constants";
 import { truncateAddress, formatDateTime, formatTimeRemaining, calculatePercentage } from "../utils/formatters";
 import { VoteModal } from "../components/VoteModal";
@@ -66,17 +66,17 @@ export const PollDetailsPage: React.FC = () => {
   };
 
   const handleClosePoll = async () => {
-    setTxStep("simulating");
+    if (!address || !poll) return;
     try {
-      await new Promise((res) => setTimeout(res, 800));
-      setTxStep("signing");
-      await new Promise((res) => setTimeout(res, 1200));
-      setTxStep("submitting");
-      await new Promise((res) => setTimeout(res, 1500));
-      setTxStep("success");
-      setPoll({ ...poll, status: 1 });
+      const updated = await closeSorobanPoll(address, poll.poll_id, (step) => setTxStep(step));
+      if (updated) {
+        setPoll({ ...updated });
+      } else {
+        setPoll({ ...poll, status: 1 });
+      }
       await refreshPolls();
     } catch (err) {
+      console.error("Error closing poll:", err);
       setTxStep("error");
     }
   };

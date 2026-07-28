@@ -11,12 +11,58 @@ export class SorobanEventListener {
   private lastLedger = 0;
   private callbacks: EventCallback[] = [];
 
+  public getStoredEvents(): SorobanEventData[] {
+    try {
+      const stored = localStorage.getItem("novapoll_activity_feed");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+
+    const seed: SorobanEventData[] = [
+      {
+        id: "evt-init-1",
+        type: "PollCreated",
+        timestamp: Math.floor(Date.now() / 1000) - 3600,
+        details: "New poll 'bgmi vs free fire' created",
+        actor: "GBQN57K3XWV6EAI24INWEGVYAS72IFTG0LXFXTQ3MTJJ2EHQYTG3KQ2",
+        ledger: 3843950,
+        txHash: "a8f93e1b7c4d2e5a6f8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f",
+      },
+      {
+        id: "evt-init-2",
+        type: "VoteCast",
+        timestamp: Math.floor(Date.now() / 1000) - 1800,
+        details: "Vote submitted for 'bgmi' on poll #1",
+        actor: "GDLZ7XWV6EAI24INWEGVYAS72IFTG0LXFXTQ3MTJJ2EHQYTG3YLBQ",
+        ledger: 3843962,
+        txHash: "b9e04f2c8d5e3f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",
+      },
+      {
+        id: "evt-init-3",
+        type: "UserRegistered",
+        timestamp: Math.floor(Date.now() / 1000) - 900,
+        details: "User account verified on-chain: yash_jadhav",
+        actor: "GBQN57K3XWV6EAI24INWEGVYAS72IFTG0LXFXTQ3MTJJ2EHQYTG3KQ2",
+        ledger: 3843968,
+        txHash: "c0f15a3d9e6f4a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
+      },
+    ];
+
+    try {
+      localStorage.setItem("novapoll_activity_feed", JSON.stringify(seed));
+    } catch (e) {}
+    return seed;
+  }
+
   public startListening(pollIntervalMs = 3000) {
     if (this.isListening) return;
     this.isListening = true;
 
-    // Seed initial activity events if empty so stream is live on load
-    this.seedInitialActivity();
+    this.getStoredEvents();
 
     this.intervalId = setInterval(async () => {
       await this.pollEvents();
@@ -57,41 +103,14 @@ export class SorobanEventListener {
       ledger,
       txHash: defaultHash,
     };
+
+    const current = this.getStoredEvents();
+    const updated = [evt, ...current.filter((e) => e.id !== evt.id)].slice(0, 30);
+    try {
+      localStorage.setItem("novapoll_activity_feed", JSON.stringify(updated));
+    } catch (e) {}
+
     this.notify(evt);
-  }
-
-  private seedInitialActivity() {
-    const initialEvents: SorobanEventData[] = [
-      {
-        id: "evt-init-1",
-        type: "PollCreated",
-        timestamp: Math.floor(Date.now() / 1000) - 3600,
-        details: "New poll 'bgmi vs free fire' created",
-        actor: "GBQN57K3XWV6EAI24INWEGVYAS72IFTG0LXFXTQ3MTJJ2EHQYTG3KQ2",
-        ledger: 3843950,
-        txHash: "a8f93e1b7c4d2e5a6f8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f",
-      },
-      {
-        id: "evt-init-2",
-        type: "VoteCast",
-        timestamp: Math.floor(Date.now() / 1000) - 1800,
-        details: "Vote submitted for 'bgmi' on poll #1",
-        actor: "GDLZ7XWV6EAI24INWEGVYAS72IFTG0LXFXTQ3MTJJ2EHQYTG3YLBQ",
-        ledger: 3843962,
-        txHash: "b9e04f2c8d5e3f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",
-      },
-      {
-        id: "evt-init-3",
-        type: "UserRegistered",
-        timestamp: Math.floor(Date.now() / 1000) - 900,
-        details: "User account verified on-chain: yash_jadhav",
-        actor: "GBQN57K3XWV6EAI24INWEGVYAS72IFTG0LXFXTQ3MTJJ2EHQYTG3KQ2",
-        ledger: 3843968,
-        txHash: "c0f15a3d9e6f4a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b",
-      },
-    ];
-
-    initialEvents.forEach((evt) => this.notify(evt));
   }
 
   private async pollEvents() {
