@@ -29,3 +29,5 @@ Thumbs.db
 .gemini/
 brain/
 *.log
+
+.vercel
