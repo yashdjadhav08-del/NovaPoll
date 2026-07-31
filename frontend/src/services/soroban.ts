@@ -125,6 +125,26 @@ export async function getLatestLedgerSequence(): Promise<number> {
 // ==========================================
 // USER CONTRACT OPERATIONS
 // ==========================================
+//
+// WALLET CONNECTION FLOW:
+//   1. User clicks "Connect Freighter" in the Navbar
+//   2. WalletContext.connectWallet() calls connectFreighterWallet() from freighter.ts
+//   3. Freighter extension prompts user to approve the connection
+//   4. On success, wallet address is stored in WalletContext.address
+//   5. WalletContext.refreshProfile() calls checkUserRegistered() and fetchUserProfile() below
+//   6. If not registered, user is prompted to register via registerUserProfile()
+//   7. All subsequent poll operations (create, vote, close) require wallet to be connected
+//
+// CONTRACT FUNCTION MAPPING (frontend → Soroban contract):
+//   checkUserRegistered()  → UserContract::user_exists(user: Address) -> bool
+//   fetchUserProfile()     → UserContract::get_user(user: Address) -> Result<UserProfile, UserError>
+//   registerUserProfile()  → UserContract::register_user(user, username, bio, profile_image_url)
+//   updateUserProfile()    → UserContract::update_profile(user, username, bio, profile_image_url)
+//   fetchAllPolls()        → PollContract::get_all_polls() -> Vec<Poll>
+//   createSorobanPoll()    → PollContract::create_poll(creator, title, desc, category, options, end_time)
+//   voteSorobanPoll()      → PollContract::vote(voter, poll_id, option_index)
+//   closeSorobanPoll()     → PollContract::close_poll(creator, poll_id)
+//
 
 export async function checkUserRegistered(userAddress: string): Promise<boolean> {
   if (!userAddress) return false;
@@ -153,9 +173,10 @@ export async function fetchUserProfile(userAddress: string): Promise<UserProfile
   const cleanAddr = userAddress.trim();
 
   try {
+    // Calls UserContract::get_user(user: Address) -> Result<UserProfile, UserError>
     const contract = new Contract(USER_CONTRACT_ID);
     const result = await server.simulateTransaction(
-      await buildReadOnlyTx(contract.call("get_profile", new Address(cleanAddr).toScVal()))
+      await buildReadOnlyTx(contract.call("get_user", new Address(cleanAddr).toScVal()))
     );
 
     if (rpc.Api.isSimulationSuccess(result) && result.result?.retval) {
@@ -207,6 +228,7 @@ export async function registerUserProfile(
     accountObj = new Account(cleanAddr, "0");
   }
 
+  // Calls UserContract::register_user(user, username, bio, profile_image_url) -> Result<UserProfile, UserError>
   const contract = new Contract(USER_CONTRACT_ID);
   const operation = contract.call(
     "register_user",
@@ -294,6 +316,7 @@ export async function updateUserProfile(
     accountObj = new Account(cleanAddr, "0");
   }
 
+  // Calls UserContract::update_profile(user, username, bio, profile_image_url) -> Result<UserProfile, UserError>
   const contract = new Contract(USER_CONTRACT_ID);
   const operation = contract.call(
     "update_profile",
@@ -349,6 +372,8 @@ export async function updateUserProfile(
 
 // ==========================================
 // POLL CONTRACT OPERATIONS
+// Cross-contract communication: PollContract calls UserContract::user_exists()
+// before allowing create_poll() and vote() — registered users only.
 // ==========================================
 
 export async function fetchAllPolls(): Promise<Poll[]> {
@@ -472,6 +497,8 @@ export async function createSorobanPoll(
     accountObj = new Account(cleanAddr, "0");
   }
 
+  // Calls PollContract::create_poll(creator, title, description, category, options, end_time) -> Result<u32, PollError>
+  // Note: The Soroban contract checks user registration via cross-contract call to UserContract::user_exists()
   const contract = new Contract(POLL_CONTRACT_ID);
   const operation = contract.call(
     "create_poll",
@@ -561,6 +588,8 @@ export async function voteSorobanPoll(
     accountObj = new Account(cleanAddr, "0");
   }
 
+  // Calls PollContract::vote(voter, poll_id, option_index) -> Result<PollResults, PollError>
+  // Note: The Soroban contract checks user registration via cross-contract call to UserContract::user_exists()
   const contract = new Contract(POLL_CONTRACT_ID);
   const operation = contract.call(
     "vote",
@@ -683,6 +712,7 @@ export async function closeSorobanPoll(
     accountObj = new Account(cleanAddr, "0");
   }
 
+  // Calls PollContract::close_poll(creator, poll_id) -> Result<PollResults, PollError>
   const contract = new Contract(POLL_CONTRACT_ID);
   const operation = contract.call(
     "close_poll",

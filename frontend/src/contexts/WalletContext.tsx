@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { isAllowed, getUserInfo } from "@stellar/freighter-api";
-import { connectFreighterWallet, FreighterWalletState } from "../services/freighter";
+import { connectFreighterWallet, disconnectFreighterWallet, FreighterWalletState } from "../services/freighter";
 import { fetchUserProfile, checkUserRegistered } from "../services/soroban";
 import { UserProfile } from "../utils/constants";
 
@@ -113,6 +113,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const disconnectWallet = () => {
     setManuallyDisconnected(true);
+    disconnectFreighterWallet(); // Clear Freighter session / mobile wallet state
     setAddress(null);
     setIsConnected(false);
     setUserProfile(null);

@@ -23,7 +23,7 @@ NovaPoll is a decentralized polling and governance platform built on the **Stell
 |---|---|
 | **User Profile Contract ID** | `CADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQP5KR` |
 | **Poll Governance Contract ID** | `CAEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQTD2L` |
-| **Contract Interaction Tx Hash** | `e2a48b9c1d0f5e3a8c7b6a4d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f` |
+| **Contract Init Tx Hash** | See `deploy.sh` — run `stellar contract invoke --id $POLL_CONTRACT_ID -- init` |
 | **Stellar Testnet RPC** | `https://soroban-testnet.stellar.org` |
 | **Stellar Explorer** | [https://stellar.expert/explorer/testnet](https://stellar.expert/explorer/testnet) |
 
@@ -47,6 +47,87 @@ Watch Here (1–2 Minutes):
 - 📡 **Live Blockchain Event Stream**: Persistent real-time audit feed recording all on-chain poll creations, votes, profile updates, and closures.
 - ⚡ **Powered by Stellar Soroban**: Sub-second ledger confirmation times with minimal gas fees on Testnet.
 - 📱 **Fully Responsive UI**: Modern dark-mode glassmorphism design optimized for desktop, tablet, and mobile devices.
+
+---
+
+## 🔐 Wallet Integration
+
+NovaPoll uses the **Freighter Browser Extension** for all wallet operations. The wallet integration is implemented in `frontend/src/services/freighter.ts` and managed via `frontend/src/contexts/WalletContext.tsx`.
+
+### Connect Wallet Flow
+
+```
+User clicks "Connect Freighter" (Navbar.tsx)
+  ↓
+WalletContext.connectWallet()
+  ↓
+freighter.ts: connectFreighterWallet()
+  ↓
+@stellar/freighter-api: getUserInfo() + isAllowed()
+  ↓
+Freighter extension prompts user to approve
+  ↓
+Public key stored in WalletContext.address
+  ↓
+soroban.ts: checkUserRegistered(address) → UserContract::user_exists()
+  ↓
+If not registered → ProfilePage shows registration form
+If registered    → fetchUserProfile(address) → UserContract::get_user()
+```
+
+### Transaction Signing Flow
+
+```
+User triggers create_poll / vote / close_poll
+  ↓
+soroban.ts builds unsigned Soroban XDR transaction
+  ↓
+freighter.ts: signFreighterTx(xdr)
+  ↓
+@stellar/freighter-api: signTransaction()
+  ↓
+Freighter extension prompts user to review & sign
+  ↓
+Signed XDR submitted to Stellar RPC: server.sendTransaction()
+```
+
+### Mobile Wallet Fallback
+
+On mobile browsers (no Freighter extension), NovaPoll uses a localStorage-based session adapter so users can still interact with the app without the desktop extension.
+
+---
+
+## 🔗 Contract–Frontend Function Mapping
+
+> Full mapping with data structures, error codes, and cross-contract diagram: [`docs/CONTRACT_FUNCTIONS.md`](docs/CONTRACT_FUNCTIONS.md)
+
+### User Contract (`contracts/user/src/lib.rs`)
+
+| Contract Function | Frontend Call | File |
+|---|---|---|
+| `register_user(user, username, bio, profile_image_url)` | `registerUserProfile()` | `soroban.ts` |
+| `update_profile(user, username, bio, profile_image_url)` | `updateUserProfile()` | `soroban.ts` |
+| `get_user(user)` | `fetchUserProfile()` | `soroban.ts` |
+| `user_exists(user)` | `checkUserRegistered()` | `soroban.ts` |
+| `increment_polls_created(user)` | *(cross-contract from PollContract)* | `poll/lib.rs` |
+| `increment_votes_cast(user)` | *(cross-contract from PollContract)* | `poll/lib.rs` |
+
+### Poll Contract (`contracts/poll/src/lib.rs`)
+
+| Contract Function | Frontend Call | File |
+|---|---|---|
+| `init(admin, user_contract)` | *(deploy script)* | `deploy.sh` |
+| `create_poll(creator, title, desc, category, options, end_time)` | `createSorobanPoll()` | `soroban.ts` |
+| `vote(voter, poll_id, option_index)` | `voteSorobanPoll()` | `soroban.ts` |
+| `close_poll(creator, poll_id)` | `closeSorobanPoll()` | `soroban.ts` |
+| `get_all_polls()` | `fetchAllPolls()` | `soroban.ts` |
+| `get_poll(poll_id)` | `fetchPollById()` | `soroban.ts` |
+
+### ⚡ Cross-Contract Communication
+
+The PollContract calls the UserContract directly via `env.invoke_contract()` for:
+- **Registration gating**: `create_poll()` and `vote()` both call `UserContract::user_exists()` — unregistered users are rejected with `PollError::UserNotRegistered`
+- **Stats tracking**: After `create_poll()` → `UserContract::increment_polls_created()`; After `vote()` → `UserContract::increment_votes_cast()`
 
 ---
 
@@ -96,7 +177,7 @@ NovaPoll/
 ├── contracts/
 │   ├── poll/                  # Soroban Rust Smart Contract for Polls & Voting
 │   │   ├── src/
-│   │   │   ├── lib.rs         # Poll creation, voting, and closure logic
+│   │   │   ├── lib.rs         # Poll creation, voting, closure & cross-contract logic
 │   │   │   └── test.rs        # Contract unit & integration tests
 │   │   └── Cargo.toml
 │   │
@@ -109,11 +190,11 @@ NovaPoll/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/        # Navbar, PollCard, LeaderboardTable, ActivityFeed, etc.
-│   │   ├── contexts/          # SorobanContext, WalletContext
+│   │   ├── contexts/          # SorobanContext, WalletContext (Freighter wallet state)
 │   │   ├── pages/             # HomePage, BrowsePollsPage, PollDetailsPage, LeaderboardPage, etc.
-│   │   ├── services/          # soroban.ts, freighter.ts, events.ts
+│   │   ├── services/          # soroban.ts (contract calls), freighter.ts (wallet), events.ts
 │   │   ├── tests/             # Vitest frontend unit tests
-│   │   ├── utils/             # constants.ts, formatters.ts
+│   │   ├── utils/             # constants.ts, formatters.ts, validators.ts
 │   │   ├── index.css          # Tailwind CSS design system
 │   │   ├── App.tsx
 │   │   └── main.tsx
@@ -121,16 +202,13 @@ NovaPoll/
 │   ├── vite.config.ts
 │   └── vercel.json
 │
-├── screenshots/               # Application UI & CI/CD screenshots
-│   ├── home.png
-│   ├── browse.png
-│   ├── create.png
-│   ├── cicd.png
-│   └── test_output.png
+├── docs/
+│   └── CONTRACT_FUNCTIONS.md  # Full contract↔frontend function mapping & architecture
 │
-├── docs/                      # Architecture, Installation, API & Testing documentation
+├── screenshots/               # Application UI & CI/CD screenshots
 ├── .github/workflows/         # GitHub Actions CI/CD Pipeline
 ├── deploy.sh                  # Soroban Testnet Contract Deployment Script
+├── Cargo.toml                 # Workspace manifest (novapoll-poll + novapoll-user)
 ├── vercel.json
 └── README.md
 ```
@@ -167,6 +245,48 @@ npm run dev
 
 ```text
 http://localhost:3000
+```
+
+---
+
+## 🚀 Smart Contract Deployment
+
+### Prerequisites
+- [Rust + cargo](https://rustup.rs/)
+- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/install-cli)
+
+### Deploy to Testnet
+
+```bash
+# 1. Build WASM binaries
+cargo build --target wasm32-unknown-unknown --release
+
+# 2. Deploy User Contract
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/novapoll_user.wasm \
+  --source alice \
+  --network testnet
+
+# 3. Deploy Poll Contract
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/novapoll_poll.wasm \
+  --source alice \
+  --network testnet
+
+# 4. Initialize Poll Contract with User Contract address
+stellar contract invoke \
+  --id $POLL_CONTRACT_ID \
+  --source alice \
+  --network testnet \
+  -- init \
+  --admin $(stellar keys address alice) \
+  --user_contract $USER_CONTRACT_ID
+```
+
+Or run the full deployment script:
+
+```bash
+chmod +x deploy.sh && ./deploy.sh
 ```
 
 ---

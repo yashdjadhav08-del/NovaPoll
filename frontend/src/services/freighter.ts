@@ -8,6 +8,33 @@ import {
 } from "@stellar/freighter-api";
 import { STELLAR_NETWORK_PASSPHRASE } from "../utils/constants";
 
+/**
+ * ============================================================
+ * FREIGHTER WALLET INTEGRATION - NovaPoll
+ * ============================================================
+ *
+ * This module implements the complete Freighter wallet connection
+ * flow for NovaPoll's Soroban smart contract interactions:
+ *
+ * CONNECT FLOW:
+ *   1. checkFreighterAvailable() — detect Freighter browser extension
+ *   2. connectFreighterWallet() — request wallet permission + get public key
+ *   3. Public key stored in WalletContext (WalletContext.tsx)
+ *   4. WalletContext triggers profile registration check via soroban.ts
+ *
+ * TRANSACTION SIGNING FLOW:
+ *   1. Build unsigned Soroban XDR transaction in soroban.ts
+ *   2. signFreighterTx(xdr) — send to Freighter for user approval
+ *   3. Freighter prompts user with transaction details
+ *   4. Signed XDR returned and submitted to Stellar RPC
+ *
+ * DISCONNECT FLOW:
+ *   1. disconnectFreighterWallet() — clear local session state
+ *   2. WalletContext.disconnectWallet() clears React state
+ *   3. User must reconnect before any transaction can be signed
+ * ============================================================
+ */
+
 export interface FreighterWalletState {
   isConnected: boolean;
   address: string | null;
@@ -118,4 +145,17 @@ export async function signFreighterTx(
   }
 
   return signedXdr;
+}
+
+/**
+ * Disconnects the Freighter wallet session by clearing local mobile wallet state.
+ * The WalletContext.disconnectWallet() should be called alongside this function
+ * to fully clear the React state (address, profile, isConnected).
+ */
+export function disconnectFreighterWallet(): void {
+  try {
+    localStorage.removeItem("novapoll_mobile_wallet_address");
+  } catch (e) {
+    // Silent — localStorage may not be available in some environments
+  }
 }
